@@ -67,6 +67,10 @@ if [ -n "$DATABASE_URL" ]; then
     export DB_HOST="${DB_HOST:-$host_and_port}"
 fi
 
+# Create data directories if they don't exist (needed when volume is mounted)
+mkdir -p /data/gitea/conf /data/gitea/log /data/git
+chown -R ${USER}:git /data/gitea /data/git 2>/dev/null || true
+
 # Create config if it doesn't exist
 if [ ! -f ${GITEA_CUSTOM}/conf/app.ini ]; then
     mkdir -p ${GITEA_CUSTOM}/conf
