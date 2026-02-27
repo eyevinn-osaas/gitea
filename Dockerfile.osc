@@ -20,11 +20,9 @@ RUN apk --no-cache add \
     su-exec \
     gnupg
 
-# Download pre-built Gitea binary
-RUN curl -fsSL "https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64.xz" -o /tmp/gitea.xz && \
-    xz -d /tmp/gitea.xz && \
-    mkdir -p /app/gitea && \
-    mv /tmp/gitea /app/gitea/gitea && \
+# Download pre-built Gitea binary (uncompressed)
+RUN mkdir -p /app/gitea && \
+    curl -fsSL "https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64" -o /app/gitea/gitea && \
     chmod +x /app/gitea/gitea
 
 RUN addgroup \
@@ -43,7 +41,7 @@ RUN addgroup \
 COPY docker/root/etc/templates /etc/templates
 
 # Create data directories
-RUN mkdir -p /data/gitea/conf /data/gitea/log /data/git /app/gitea && \
+RUN mkdir -p /data/gitea/conf /data/gitea/log /data/git && \
     chown -R git:git /data /app/gitea
 
 VOLUME ["/data"]
