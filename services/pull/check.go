@@ -246,7 +246,7 @@ func isSignedIfRequired(ctx context.Context, pr *issues_model.PullRequest, doer 
 // markPullRequestAsMergeable checks if pull request is possible to leaving checking status,
 // and set to be either conflict or mergeable.
 func markPullRequestAsMergeable(ctx context.Context, pr *issues_model.PullRequest) {
-	// If the status has not been changed to conflict by testPullRequestTmpRepoBranchMergeable then we are mergeable
+	// If the status has not been changed to conflict by the conflict checking functions then we are mergeable
 	if pr.Status == issues_model.PullRequestStatusChecking {
 		pr.Status = issues_model.PullRequestStatusMergeable
 	}
@@ -291,7 +291,7 @@ func getMergeCommit(ctx context.Context, pr *issues_model.PullRequest) (*git.Com
 	if err := gitrepo.RunCmdWithStderr(ctx, pr.BaseRepo, cmd); err != nil {
 		if gitcmd.IsErrorExitCode(err, 1) {
 			// prHeadRef is not an ancestor of the base branch
-			return nil, nil
+			return nil, nil //nolint:nilnil // return nil to indicate that the PR head is not merged
 		}
 		// Errors are signaled by a non-zero status that is not 1
 		return nil, fmt.Errorf("%-v git merge-base --is-ancestor: %w", pr, err)
@@ -442,8 +442,8 @@ func checkPullRequestMergeable(id int64) {
 		return
 	}
 
-	if err := testPullRequestBranchMergeable(pr); err != nil {
-		log.Error("testPullRequestTmpRepoBranchMergeable[%-v]: %v", pr, err)
+	if err := checkPullRequestBranchMergeable(ctx, pr); err != nil {
+		log.Error("checkPullRequestBranchMergeable[%-v]: %v", pr, err)
 		pr.Status = issues_model.PullRequestStatusError
 		if err := pr.UpdateCols(ctx, "status"); err != nil {
 			log.Error("update pr [%-v] status to PullRequestStatusError failed: %v", pr, err)

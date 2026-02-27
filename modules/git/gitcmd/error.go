@@ -77,6 +77,13 @@ func IsErrorCanceledOrKilled(err error) bool {
 	return errors.Is(err, context.Canceled) || IsErrorSignalKilled(err)
 }
 
+func IsStdErrorNotValidObjectName(err error) bool {
+	stderr, ok := ErrorAsStderr(err)
+	// Git is lowercasing the "fatal: Not a valid object name" error message
+	// ref: https://lore.kernel.org/git/pull.2052.git.1771836302101.gitgitgadget@gmail.com
+	return ok && strings.Contains(strings.ToLower(stderr), "fatal: not a valid object name")
+}
+
 type pipelineError struct {
 	error
 }
@@ -92,10 +99,10 @@ func wrapPipelineError(err error) error {
 	return pipelineError{err}
 }
 
-func ErrorAsPipeline(err error) error {
-	var pipelineErr pipelineError
-	if errors.As(err, &pipelineErr) {
-		return pipelineErr.error
+func UnwrapPipelineError(err error) (error, bool) { //nolint:revive // this is for error unwrapping
+	var pe pipelineError
+	if errors.As(err, &pe) {
+		return pe.error, true
 	}
-	return nil
+	return nil, false
 }

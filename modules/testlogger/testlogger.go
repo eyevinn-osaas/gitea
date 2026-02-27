@@ -118,7 +118,7 @@ func PrintCurrentTest(t testing.TB, skip ...int) func() {
 	deferHasRun := false
 	t.Cleanup(func() {
 		if !deferHasRun {
-			Printf("!!! defer function hasn't been run but Cleanup is called\n%s", getRuntimeStackAll())
+			Printf("!!! %s defer function hasn't been run but Cleanup is called, usually caused by panic", t.Name())
 		}
 	})
 	Printf("=== %s (%s:%d)\n", log.NewColoredValue(t.Name()), strings.TrimPrefix(filename, prefix), line)
@@ -171,19 +171,9 @@ func Init() {
 	prefix = strings.TrimSuffix(filename, relFilePath)
 
 	log.RegisterEventWriter("test", newTestLoggerWriter)
-
-	duration, err := time.ParseDuration(os.Getenv("GITEA_TEST_SLOW_RUN"))
-	if err == nil && duration > 0 {
-		TestSlowRun = duration
-	}
-
-	duration, err = time.ParseDuration(os.Getenv("GITEA_TEST_SLOW_FLUSH"))
-	if err == nil && duration > 0 {
-		TestSlowFlush = duration
-	}
 }
 
-func Fatalf(format string, args ...any) {
-	Printf(format+"\n", args...)
-	os.Exit(1)
+func Panicf(format string, args ...any) {
+	// don't call os.Exit, otherwise the "defer" functions won't be executed
+	panic(fmt.Sprintf(format, args...))
 }
