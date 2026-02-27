@@ -75,9 +75,14 @@ chown -R ${USER}:git /data/gitea /data/git 2>/dev/null || true
 if [ ! -f ${GITEA_CUSTOM}/conf/app.ini ]; then
     mkdir -p ${GITEA_CUSTOM}/conf
 
-    # Set INSTALL_LOCK to true only if SECRET_KEY is not empty and INSTALL_LOCK is empty
-    if [ -n "$SECRET_KEY" ] && [ -z "$INSTALL_LOCK" ]; then
-        INSTALL_LOCK=true
+    # In OSC context, always lock installation since we configure
+    # everything programmatically via the API. Without this, Gitea
+    # shows an interactive installation wizard and the API is unavailable.
+    INSTALL_LOCK=${INSTALL_LOCK:-"true"}
+
+    # Generate a random SECRET_KEY if not provided
+    if [ -z "$SECRET_KEY" ]; then
+        SECRET_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '=+/' | head -c 32)
     fi
 
     # Substitute the environment variables in the template
@@ -96,10 +101,10 @@ if [ ! -f ${GITEA_CUSTOM}/conf/app.ini ]; then
     DB_NAME=${DB_NAME:-"gitea"} \
     DB_USER=${DB_USER:-"root"} \
     DB_PASSWD=${DB_PASSWD:-""} \
-    INSTALL_LOCK=${INSTALL_LOCK:-"false"} \
+    INSTALL_LOCK=${INSTALL_LOCK} \
     DISABLE_REGISTRATION=${DISABLE_REGISTRATION:-"false"} \
     REQUIRE_SIGNIN_VIEW=${REQUIRE_SIGNIN_VIEW:-"false"} \
-    SECRET_KEY=${SECRET_KEY:-""} \
+    SECRET_KEY=${SECRET_KEY} \
     envsubst < /etc/templates/app.ini > ${GITEA_CUSTOM}/conf/app.ini
 
     chown ${USER}:git ${GITEA_CUSTOM}/conf/app.ini
