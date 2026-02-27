@@ -1,41 +1,9 @@
-# syntax=docker/dockerfile:1
 # Dockerfile for Eyevinn Open Source Cloud deployment
+# Uses pre-built Gitea binary to avoid heavy Go+webpack compilation
 
-# Build frontend on the native platform
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26-alpine3.23 AS frontend-build
-RUN apk --no-cache add build-base git nodejs pnpm
-ENV NODE_OPTIONS=--max-old-space-size=2048
-WORKDIR /src
-COPY --exclude=.git/ . .
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store make frontend
-
-# Build backend
-FROM docker.io/library/golang:1.26-alpine3.23 AS build-env
-
-ARG GOPROXY=direct
-
-ARG GITEA_VERSION
-ARG TAGS="sqlite sqlite_unlock_notify"
-ENV TAGS="bindata timetzdata $TAGS"
-ARG CGO_EXTRA_CFLAGS
-
-# Build deps
-RUN apk --no-cache add \
-    build-base \
-    git
-
-WORKDIR ${GOPATH}/src/code.gitea.io/gitea
-COPY --exclude=.git/ . .
-COPY --from=frontend-build /src/public/assets public/assets
-
-# Build gitea, .git mount is required for version data
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target="/root/.cache/go-build" \
-    --mount=type=bind,source=".git/",target=".git/" \
-    make backend
-
-# Runtime stage
 FROM docker.io/library/alpine:3.23
+
+ARG GITEA_VERSION=1.25.4
 
 ENV PORT=3000
 ENV USER=git
@@ -52,6 +20,13 @@ RUN apk --no-cache add \
     su-exec \
     gnupg
 
+# Download pre-built Gitea binary
+RUN curl -fsSL "https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64.xz" -o /tmp/gitea.xz && \
+    xz -d /tmp/gitea.xz && \
+    mkdir -p /app/gitea && \
+    mv /tmp/gitea /app/gitea/gitea && \
+    chmod +x /app/gitea/gitea
+
 RUN addgroup \
     -S -g 1000 \
     git && \
@@ -63,8 +38,6 @@ RUN addgroup \
     -G git \
     git && \
   echo "git:*" | chpasswd -e
-
-COPY --from=build-env /go/src/code.gitea.io/gitea/gitea /app/gitea/gitea
 
 # Copy templates
 COPY docker/root/etc/templates /etc/templates
