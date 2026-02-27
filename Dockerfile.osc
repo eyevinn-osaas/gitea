@@ -1,8 +1,15 @@
 # syntax=docker/dockerfile:1
 # Dockerfile for Eyevinn Open Source Cloud deployment
 
-# Build stage
-FROM docker.io/library/golang:1.25-alpine3.22 AS build-env
+# Build frontend on the native platform
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26-alpine3.23 AS frontend-build
+RUN apk --no-cache add build-base git nodejs pnpm
+WORKDIR /src
+COPY --exclude=.git/ . .
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store make frontend
+
+# Build backend
+FROM docker.io/library/golang:1.26-alpine3.23 AS build-env
 
 ARG GOPROXY=direct
 
@@ -14,22 +21,20 @@ ARG CGO_EXTRA_CFLAGS
 # Build deps
 RUN apk --no-cache add \
     build-base \
-    git \
-    nodejs \
-    pnpm
+    git
 
 WORKDIR ${GOPATH}/src/code.gitea.io/gitea
 COPY --exclude=.git/ . .
+COPY --from=frontend-build /src/public/assets public/assets
 
 # Build gitea, .git mount is required for version data
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target="/root/.cache/go-build" \
-    --mount=type=cache,target=/root/.local/share/pnpm/store \
     --mount=type=bind,source=".git/",target=".git/" \
-    make
+    make backend
 
 # Runtime stage
-FROM docker.io/library/alpine:3.22
+FROM docker.io/library/alpine:3.23
 
 ENV PORT=3000
 ENV USER=git
