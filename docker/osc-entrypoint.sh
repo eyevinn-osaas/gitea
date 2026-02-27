@@ -110,9 +110,6 @@ if [ ! -f ${GITEA_CUSTOM}/conf/app.ini ]; then
     chown ${USER}:git ${GITEA_CUSTOM}/conf/app.ini
 fi
 
-# Replace app.ini settings with env variables in the form GITEA__SECTION_NAME__KEY_NAME
-/app/gitea/gitea config edit-ini --in-place --apply-env --config ${GITEA_CUSTOM}/conf/app.ini
-
 # Ensure correct ownership
 chown -R ${USER}:git /data/gitea /app/gitea /data/git 2>/dev/null || true
 chmod 0755 /data/gitea /app/gitea /data/git
